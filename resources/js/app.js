@@ -22,6 +22,91 @@ document.addEventListener('click', async (event) => {
     }
 });
 
+const initLinkEditorFocus = () => {
+    let activeEditor = null;
+    let cleanupTimer = null;
+
+    const activeClasses = [
+        'border-cyan-300/30',
+        'bg-cyan-400/10',
+        'ring-2',
+        'ring-cyan-300/20',
+        'shadow-2xl',
+    ];
+
+    const clearActiveEditor = () => {
+        if (cleanupTimer) {
+            window.clearTimeout(cleanupTimer);
+            cleanupTimer = null;
+        }
+
+        if (!activeEditor) {
+            return;
+        }
+
+        activeEditor.classList.remove(...activeClasses);
+        activeEditor = null;
+    };
+
+    const activateEditor = (targetId) => {
+        const editor = document.getElementById(targetId);
+
+        if (!editor || !editor.matches('[data-link-editor]')) {
+            return;
+        }
+
+        clearActiveEditor();
+
+        activeEditor = editor;
+        activeEditor.classList.add(...activeClasses);
+        activeEditor.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+
+        const urlInput = activeEditor.querySelector('[data-link-url-input]');
+
+        window.setTimeout(() => {
+            urlInput?.focus({ preventScroll: true });
+            urlInput?.select();
+        }, 220);
+
+        cleanupTimer = window.setTimeout(() => {
+            clearActiveEditor();
+        }, 2600);
+    };
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-link-editor-trigger]');
+
+        if (!trigger) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const hash = trigger.getAttribute('href');
+
+        if (!hash || !hash.startsWith('#')) {
+            return;
+        }
+
+        const targetId = hash.slice(1);
+
+        if (window.location.hash !== hash) {
+            window.history.replaceState(null, '', hash);
+        }
+
+        activateEditor(targetId);
+    });
+
+    if (window.location.hash.startsWith('#link-editor-')) {
+        window.setTimeout(() => {
+            activateEditor(window.location.hash.slice(1));
+        }, 180);
+    }
+};
+
 const initAnalyticsCharts = () => {
     document.querySelectorAll('[data-analytics-chart]').forEach((chart) => {
         if (chart.dataset.initialized === 'true') {
@@ -116,6 +201,7 @@ const initAnalyticsCharts = () => {
 };
 
 initAnalyticsCharts();
+initLinkEditorFocus();
 
 window.setTimeout(() => {
     document.querySelectorAll('[data-flash]').forEach((element) => {

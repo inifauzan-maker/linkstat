@@ -107,9 +107,13 @@ class PublicLandingPageController extends Controller
             $landingPage->markCustomDomainConnected($request->getHost());
         }
 
-        $this->tracker->recordLinkClick($landingPage, $link, $request);
+        $destinationUrl = $link->destinationUrl();
 
-        return redirect()->away($link->url);
+        abort_unless(LandingPageLink::isValidExternalUrl($destinationUrl), 404);
+
+        $this->tracker->recordLinkClick($landingPage, $link, $request, $destinationUrl);
+
+        return redirect()->away($destinationUrl);
     }
 
     protected function resolveCustomDomainLandingPage(Request $request): LandingPage

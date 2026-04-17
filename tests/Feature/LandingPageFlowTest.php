@@ -216,6 +216,87 @@ class LandingPageFlowTest extends TestCase
         ]);
     }
 
+    public function test_user_can_store_link_without_scheme_and_public_redirect_uses_https(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Link Normalizer',
+            'email' => 'link-normalizer@example.com',
+            'password' => Hash::make('Password123!'),
+        ]);
+
+        $landingPage = $user->landingPage()->create([
+            'slug' => 'link-normalizer',
+            'title' => 'Link Normalizer',
+            'headline' => 'Normalize website link',
+            'bio' => 'Testing URL normalization.',
+            'whatsapp_number' => '628313131313',
+            'whatsapp_message' => 'Halo Link',
+            'cta_label' => 'Chat via WhatsApp',
+            'theme' => 'night',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('dashboard.links.store'), [
+                'label' => 'Website',
+                'description' => 'Kunjungi Website Kami',
+                'url' => 'example.com/program',
+                'sort_order' => 1,
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $link = $landingPage->links()->firstOrFail();
+
+        $this->assertSame('https://example.com/program', $link->url);
+
+        $this->get(route('public.pages.links', [$landingPage, $link]))
+            ->assertRedirect('https://example.com/program');
+
+        $this->assertDatabaseHas('landing_page_events', [
+            'landing_page_id' => $landingPage->id,
+            'landing_page_link_id' => $link->id,
+            'event_type' => LandingPageEvent::LINK_CLICK,
+            'clicked_url' => 'https://example.com/program',
+        ]);
+    }
+
+    public function test_user_cannot_store_link_with_invalid_domain(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Invalid Link',
+            'email' => 'invalid-link@example.com',
+            'password' => Hash::make('Password123!'),
+        ]);
+
+        $user->landingPage()->create([
+            'slug' => 'invalid-link',
+            'title' => 'Invalid Link',
+            'headline' => 'Invalid URL test',
+            'bio' => 'Testing invalid URL validation.',
+            'whatsapp_number' => '628414141414',
+            'whatsapp_message' => 'Halo Invalid',
+            'cta_label' => 'Chat via WhatsApp',
+            'theme' => 'mint',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('dashboard'))
+            ->post(route('dashboard.links.store'), [
+                'label' => 'Website',
+                'description' => 'Link rusak',
+                'url' => 'www.v',
+                'sort_order' => 1,
+            ])
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHasErrors('url');
+
+        $this->assertDatabaseMissing('landing_page_links', [
+            'label' => 'Website',
+            'url' => 'https://www.v',
+        ]);
+    }
+
     public function test_analytics_summary_returns_detailed_timeline_deltas_and_sources(): void
     {
         Carbon::setTestNow('2026-04-17 12:00:00');

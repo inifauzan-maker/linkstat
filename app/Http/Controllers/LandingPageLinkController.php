@@ -12,12 +12,7 @@ class LandingPageLinkController extends Controller
     {
         $landingPage = $request->user()->landingPage()->firstOrFail();
 
-        $validated = $request->validate([
-            'label' => ['required', 'string', 'max:60'],
-            'description' => ['nullable', 'string', 'max:120'],
-            'url' => ['required', 'url', 'max:255'],
-            'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
-        ]);
+        $validated = $this->validateLinkPayload($request);
 
         $landingPage->links()->create([
             ...$validated,
@@ -33,12 +28,7 @@ class LandingPageLinkController extends Controller
         $landingPage = $request->user()->landingPage()->firstOrFail();
         abort_if($link->landing_page_id !== $landingPage->id, 404);
 
-        $validated = $request->validate([
-            'label' => ['required', 'string', 'max:60'],
-            'description' => ['nullable', 'string', 'max:120'],
-            'url' => ['required', 'url', 'max:255'],
-            'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
-        ]);
+        $validated = $this->validateLinkPayload($request);
 
         $link->update([
             ...$validated,
@@ -57,5 +47,30 @@ class LandingPageLinkController extends Controller
         $link->delete();
 
         return redirect()->route('dashboard')->with('status', 'Link berhasil dihapus.');
+    }
+
+    protected function validateLinkPayload(Request $request): array
+    {
+        $normalizedUrl = LandingPageLink::normalizeExternalUrl($request->input('url'));
+
+        $request->merge([
+            'url' => $normalizedUrl,
+        ]);
+
+        return $request->validate([
+            'label' => ['required', 'string', 'max:60'],
+            'description' => ['nullable', 'string', 'max:120'],
+            'url' => [
+                'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! LandingPageLink::isValidExternalUrl(is_string($value) ? $value : null)) {
+                        $fail('Masukkan URL yang valid, misalnya https://example.com atau example.com.');
+                    }
+                },
+            ],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
+        ]);
     }
 }

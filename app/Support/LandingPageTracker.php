@@ -24,14 +24,19 @@ class LandingPageTracker
         );
     }
 
-    public function recordLinkClick(LandingPage $landingPage, LandingPageLink $link, Request $request): void
+    public function recordLinkClick(
+        LandingPage $landingPage,
+        LandingPageLink $link,
+        Request $request,
+        ?string $clickedUrl = null,
+    ): void
     {
         $this->record(
             landingPage: $landingPage,
             request: $request,
             eventType: LandingPageEvent::LINK_CLICK,
             link: $link,
-            clickedUrl: $link->url,
+            clickedUrl: $clickedUrl ?? $link->destinationUrl(),
         );
     }
 
